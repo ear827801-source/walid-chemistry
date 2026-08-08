@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم | أ/ وليد قنديل</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard-page">
+    <div class="dashboard-bg"></div>
+    
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-panel">
+            <div class="sidebar-header" style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px;">
+                <img src="assets/teacher-photo.jpg" alt="أ/ وليد قنديل" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; object-position: top center; border: 3px solid var(--primary); margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                <h3 style="margin: 0; font-size: 1.2rem;">أ/ وليد قنديل</h3>
+                <span class="subject-badge" style="margin-top: 5px;">الكيمياء 🧪</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-tab="overview">
+                    <ion-icon name="home-outline"></ion-icon>
+                    <span>لوحة التحكم</span>
+                </button>
+                <button class="nav-item" data-tab="groups">
+                    <ion-icon name="albums-outline"></ion-icon>
+                    <span>إدارة المجموعات</span>
+                </button>
+                <button class="nav-item" data-tab="students">
+                    <ion-icon name="people-outline"></ion-icon>
+                    <span>قائمة الطلاب</span>
+                </button>
+                <button class="nav-item" data-tab="payments">
+                    <ion-icon name="cash-outline"></ion-icon>
+                    <span>متابعة الدفع</span>
+                </button>
+            </nav>
+            
+            <div class="sidebar-footer" style="display:none;">
+                <button id="logoutBtn" class="btn btn-danger btn-block">
+                    <ion-icon name="log-out-outline"></ion-icon>
+                    <span>تسجيل الخروج</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content glass-panel">
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="loading-overlay" style="display: none;">
+                <div class="spinner"></div>
+            </div>
+
+            <!-- Tab: Overview -->
+            <section id="tab-overview" class="tab-pane active">
+                <div class="content-header">
+                    <h2>نظرة عامة</h2>
+                    <div class="current-date" id="currentDate"></div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(var(--accent-1), 0.2); color: rgb(var(--accent-1));">
+                            <ion-icon name="people"></ion-icon>
+                        </div>
+                        <div class="stat-info">
+                            <h4>إجمالي الطلاب</h4>
+                            <span id="stat-total-students" class="stat-value">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(var(--accent-2), 0.2); color: rgb(var(--accent-2));">
+                            <ion-icon name="albums"></ion-icon>
+                        </div>
+                        <div class="stat-info">
+                            <h4>المجموعات النشطة</h4>
+                            <span id="stat-total-groups" class="stat-value">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(var(--success), 0.2); color: rgb(var(--success));">
+                            <ion-icon name="cash"></ion-icon>
+                        </div>
+                        <div class="stat-info">
+                            <h4>إجمالي التحصيل (الشهر الحالي)</h4>
+                            <span id="stat-total-collected" class="stat-value">0</span>
+                            <span class="currency">ج.م</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-section">
+                    <h3>أحدث التسجيلات</h3>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>الاسم</th>
+                                    <th>رقم الواتساب</th>
+                                    <th>السنة الدراسية</th>
+                                    <th>المجموعة</th>
+                                    <th>تاريخ التسجيل</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-students-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Groups -->
+            <section id="tab-groups" class="tab-pane">
+                <div class="content-header">
+                    <h2>إدارة المجموعات</h2>
+                    <button class="btn btn-primary" id="btn-add-group">
+                        <ion-icon name="add"></ion-icon> إضافة مجموعة
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>اسم المجموعة</th>
+                                <th>السنة الدراسية</th>
+                                <th>اليوم</th>
+                                <th>الموعد</th>
+                                <th>العدد/السعة</th>
+                                <th>الحالة</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="groups-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Tab: Students -->
+            <section id="tab-students" class="tab-pane">
+                <div class="content-header">
+                    <h2>قائمة الطلاب</h2>
+                    <div class="filters">
+                        <input type="text" id="student-search" placeholder="بحث بالاسم أو الرقم..." class="form-control">
+                        <select id="student-year-filter" class="form-control">
+                            <option value="">كل السنوات</option>
+                            <option value="1">الأول الثانوي</option>
+                            <option value="2">الثاني الثانوي</option>
+                            <option value="3">الثالث الثانوي</option>
+                        </select>
+                        <select id="student-group-filter" class="form-control">
+                            <option value="">كل المجموعات</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>رقم الواتساب</th>
+                                <th>السنة الدراسية</th>
+                                <th>المجموعة</th>
+                                <th>تاريخ التسجيل</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="students-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Tab: Payments -->
+            <section id="tab-payments" class="tab-pane">
+                <div class="content-header">
+                    <h2>متابعة الدفع</h2>
+                    <div class="filters">
+                        <select id="payment-month-filter" class="form-control">
+                        </select>
+                        <select id="payment-group-filter" class="form-control">
+                            <option value="">كل المجموعات</option>
+                        </select>
+                        <button class="btn btn-outline" id="btn-generate-payments">
+                            <ion-icon name="refresh"></ion-icon> إنشاء كشف الشهر
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="payment-stats-mini">
+                    <div class="badge badge-success">تم الدفع: <span id="pay-stat-paid">0</span></div>
+                    <div class="badge badge-danger">لم يتم الدفع: <span id="pay-stat-unpaid">0</span></div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>المجموعة</th>
+                                <th>المبلغ المطلوب</th>
+                                <th>المدفوع</th>
+                                <th>الحالة</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payments-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal: Group Form -->
+    <div id="group-modal" class="modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3 id="group-modal-title">إضافة مجموعة جديدة</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="group-form">
+                <input type="hidden" id="group-id">
+                <div class="form-group">
+                    <label>اسم المجموعة</label>
+                    <input type="text" id="group-name" required placeholder="مثال: المجموعة أ">
+                </div>
+                <div class="form-group">
+                    <label>السنة الدراسية</label>
+                    <select id="group-year" required>
+                        <option value="1">الصف الأول الثانوي</option>
+                        <option value="2">الصف الثاني الثانوي</option>
+                        <option value="3">الصف الثالث الثانوي</option>
+                    </select>
+                </div>
+                <div class="form-group row">
+                    <div class="col">
+                        <label>اليوم</label>
+                        <select id="group-day" required>
+                            <option value="السبت">السبت</option>
+                            <option value="الأحد">الأحد</option>
+                            <option value="الاثنين">الاثنين</option>
+                            <option value="الثلاثاء">الثلاثاء</option>
+                            <option value="الأربعاء">الأربعاء</option>
+                            <option value="الخميس">الخميس</option>
+                            <option value="الجمعة">الجمعة</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <label>الموعد</label>
+                        <input type="text" id="group-time" required placeholder="مثال: 4:00 م">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>الحد الأقصى للطلاب</label>
+                    <input type="number" id="group-max" required min="1" value="30">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline close-modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Generate Payments -->
+    <div id="payment-generate-modal" class="modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3>إنشاء كشف دفع شهري</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="payment-generate-form">
+                <p class="text-muted" style="margin-bottom: 1rem;">سيتم إنشاء سجل دفع لجميع الطلاب المسجلين حالياً.</p>
+                <div class="form-group">
+                    <label>الشهر</label>
+                    <input type="month" id="generate-month" required>
+                </div>
+                <div class="form-group">
+                    <label>المبلغ المطلوب (ج.م)</label>
+                    <input type="number" id="generate-amount" required min="1" value="200">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline close-modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إنشاء الكشف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Payment Update -->
+    <div id="payment-update-modal" class="modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3>تحديث حالة الدفع</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="payment-update-form">
+                <input type="hidden" id="update-payment-id">
+                <p id="update-payment-student" style="font-weight: bold; margin-bottom: 1rem;"></p>
+                <div class="form-group">
+                    <label>المبلغ المدفوع</label>
+                    <input type="number" id="update-payment-amount" required min="0">
+                </div>
+                <div class="form-group">
+                    <label>الحالة</label>
+                    <select id="update-payment-status" required>
+                        <option value="paid">تم الدفع</option>
+                        <option value="partial">دفع جزئي</option>
+                        <option value="unpaid">لم يتم الدفع</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline close-modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">حفظ وتحديث</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/groups.js"></script>
+    <script src="js/students.js"></script>
+    <script src="js/payments.js"></script>
+</body>
+</html>
