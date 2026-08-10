@@ -39,6 +39,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load
     loadOverviewStats();
+
+    // Auto-refresh data every 8 seconds so WhatsApp bookings update live
+    setInterval(() => {
+        const activeNav = document.querySelector('.nav-item.active');
+        if (activeNav) {
+            const currentTab = activeNav.dataset.tab;
+            if (currentTab === 'overview') loadOverviewStats();
+            else if (currentTab === 'groups' && window.loadGroups) window.loadGroups();
+            else if (currentTab === 'students' && window.loadStudents) window.loadStudents();
+            else if (currentTab === 'payments' && window.loadPayments) window.loadPayments();
+        }
+    }, 8000);
 });
 
 // Loading indicator functions

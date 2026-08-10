@@ -10,27 +10,25 @@ router.use(authMiddleware);
 //  DASHBOARD STATS
 // ═══════════════════════════════════════
 
-/**
- * GET /api/stats
- * Returns overview statistics for the dashboard.
- */
-router.get('/stats', (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
-    const currentMonth = new Date().toISOString().slice(0, 7); // e.g., "2026-08"
+    const currentMonth = new Date().toISOString().slice(0, 7);
 
-    const totalStudents = stmts.getTotalStudents.get().count;
-    const totalGroups = stmts.getTotalGroups.get().count;
-    const paidCount = stmts.getPaidCount.get(currentMonth).count;
-    const unpaidCount = stmts.getUnpaidCount.get(currentMonth).count;
-    const totalCollected = stmts.getTotalCollected.get(currentMonth).total;
-    const recentStudents = stmts.getRecentStudents.all();
+    const [totalStudents, totalGroups, paidCount, unpaidCount, totalCollected, recentStudents] = await Promise.all([
+        stmts.getTotalStudents.get(),
+        stmts.getTotalGroups.get(),
+        stmts.getPaidCount.get(currentMonth),
+        stmts.getUnpaidCount.get(currentMonth),
+        stmts.getTotalCollected.get(currentMonth),
+        stmts.getRecentStudents.all()
+    ]);
 
     res.json({
-      totalStudents,
-      totalGroups,
-      paidCount,
-      unpaidCount,
-      totalCollected,
+      totalStudents: totalStudents.count,
+      totalGroups: totalGroups.count,
+      paidCount: paidCount.count,
+      unpaidCount: unpaidCount.count,
+      totalCollected: totalCollected.total,
       currentMonth,
       recentStudents
     });
@@ -44,21 +42,17 @@ router.get('/stats', (req, res) => {
 //  GROUPS MANAGEMENT
 // ═══════════════════════════════════════
 
-/**
- * GET /api/groups
- * List all groups, optionally filtered by year or active status.
- */
-router.get('/groups', (req, res) => {
+router.get('/groups', async (req, res) => {
   try {
     const { year, active } = req.query;
 
     let groups;
     if (year) {
-      groups = stmts.getGroupsByYear.all(parseInt(year));
+      groups = await stmts.getGroupsByYear.all(parseInt(year));
     } else if (active === 'true') {
-      groups = stmts.getActiveGroups.all();
+      groups = await stmts.getActiveGroups.all();
     } else {
-      groups = stmts.getAllGroups.all();
+      groups = await stmts.getAllGroups.all();
     }
 
     res.json(groups);
@@ -68,11 +62,7 @@ router.get('/groups', (req, res) => {
   }
 });
 
-/**
- * POST /api/groups
- * Create a new group.
- */
-router.post('/groups', (req, res) => {
+router.post('/groups', async (req, res) => {
   try {
     const { name, school_year, lesson_day, lesson_time, max_students } = req.body;
 
@@ -80,7 +70,7 @@ router.post('/groups', (req, res) => {
       return res.status(400).json({ error: 'يرجى ملء جميع الحقول المطلوبة' });
     }
 
-    const result = stmts.insertGroup.run({
+    const result = await stmts.insertGroup.run({
       name,
       school_year: parseInt(school_year),
       lesson_day,
@@ -88,7 +78,7 @@ router.post('/groups', (req, res) => {
       max_students: parseInt(max_students) || 30
     });
 
-    const group = stmts.getGroupById.get(result.lastInsertRowid);
+    const group = await stmts.getGroupById.get(result.lastInsertRowid);
     res.status(201).json(group);
   } catch (err) {
     console.error('Group create error:', err);
@@ -96,30 +86,26 @@ router.post('/groups', (req, res) => {
   }
 });
 
-/**
- * PUT /api/groups/:id
- * Update an existing group.
- */
-router.put('/groups/:id', (req, res) => {
+router.put('/groups/:id', async (req, res) => {
   try {
     const { name, school_year, lesson_day, lesson_time, max_students } = req.body;
     const id = parseInt(req.params.id);
 
-    const existing = stmts.getGroupById.get(id);
+    const existing = await stmts.getGroupById.get(id);
     if (!existing) {
       return res.status(404).json({ error: 'المجموعة غير موجودة' });
     }
 
-    stmts.updateGroup.run({
+    await stmts.updateGroup.run({
       id,
       name: name || existing.name,
-      school_year: parseInt(school_year) || existing.school_year,
+      school_year: school_year ? parseInt(school_year) : existing.school_year,
       lesson_day: lesson_day || existing.lesson_day,
       lesson_time: lesson_time || existing.lesson_time,
-      max_students: parseInt(max_students) || existing.max_students
+      max_students: max_students ? parseInt(max_students) : existing.max_students
     });
 
-    const updated = stmts.getGroupById.get(id);
+    const updated = await stmts.getGroupById.get(id);
     res.json(updated);
   } catch (err) {
     console.error('Group update error:', err);
@@ -127,20 +113,16 @@ router.put('/groups/:id', (req, res) => {
   }
 });
 
-/**
- * DELETE /api/groups/:id
- * Soft-delete a group (marks as inactive).
- */
-router.delete('/groups/:id', (req, res) => {
+router.delete('/groups/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const existing = stmts.getGroupById.get(id);
+    const existing = await stmts.getGroupById.get(id);
 
     if (!existing) {
       return res.status(404).json({ error: 'المجموعة غير موجودة' });
     }
 
-    stmts.deleteGroup.run(id);
+    await stmts.deleteGroup.run(id);
     res.json({ message: 'تم حذف المجموعة بنجاح' });
   } catch (err) {
     console.error('Group delete error:', err);
@@ -152,24 +134,19 @@ router.delete('/groups/:id', (req, res) => {
 //  STUDENTS MANAGEMENT
 // ═══════════════════════════════════════
 
-/**
- * GET /api/students
- * List all students, optionally filtered by group or year.
- */
-router.get('/students', (req, res) => {
+router.get('/students', async (req, res) => {
   try {
     const { group_id, year, search } = req.query;
     let students;
 
     if (group_id) {
-      students = stmts.getStudentsByGroup.all(parseInt(group_id));
+      students = await stmts.getStudentsByGroup.all(parseInt(group_id));
     } else if (year) {
-      students = stmts.getStudentsByYear.all(parseInt(year));
+      students = await stmts.getStudentsByYear.all(parseInt(year));
     } else {
-      students = stmts.getAllStudents.all();
+      students = await stmts.getAllStudents.all();
     }
 
-    // Apply search filter if provided
     if (search) {
       const searchLower = search.toLowerCase();
       students = students.filter(s =>
@@ -185,11 +162,7 @@ router.get('/students', (req, res) => {
   }
 });
 
-/**
- * POST /api/students
- * Manually add a student (from dashboard).
- */
-router.post('/students', (req, res) => {
+router.post('/students', async (req, res) => {
   try {
     const { name, phone, school_year, group_id } = req.body;
 
@@ -197,14 +170,14 @@ router.post('/students', (req, res) => {
       return res.status(400).json({ error: 'يرجى ملء جميع الحقول المطلوبة' });
     }
 
-    const result = bookStudent({
+    await bookStudent({
       name,
       phone,
       school_year: parseInt(school_year),
       group_id: parseInt(group_id)
     });
 
-    const student = stmts.getStudentByPhone.get(phone);
+    const student = await stmts.getStudentByPhone.get(phone);
     res.status(201).json(student);
   } catch (err) {
     if (err.message === 'ALREADY_REGISTERED') {
@@ -218,13 +191,9 @@ router.post('/students', (req, res) => {
   }
 });
 
-/**
- * DELETE /api/students/:id
- * Remove a student and decrement group count.
- */
-router.delete('/students/:id', (req, res) => {
+router.delete('/students/:id', async (req, res) => {
   try {
-    const student = removeStudent(parseInt(req.params.id));
+    const student = await removeStudent(parseInt(req.params.id));
     res.json({ message: `تم حذف الطالب ${student.name} بنجاح` });
   } catch (err) {
     if (err.message === 'STUDENT_NOT_FOUND') {
@@ -239,20 +208,16 @@ router.delete('/students/:id', (req, res) => {
 //  PAYMENTS MANAGEMENT
 // ═══════════════════════════════════════
 
-/**
- * GET /api/payments
- * List payments, filtered by month and optionally by group.
- */
-router.get('/payments', (req, res) => {
+router.get('/payments', async (req, res) => {
   try {
     const { month, group_id } = req.query;
     const targetMonth = month || new Date().toISOString().slice(0, 7);
 
     let payments;
     if (group_id) {
-      payments = stmts.getPaymentsByGroupAndMonth.all(parseInt(group_id), targetMonth);
+      payments = await stmts.getPaymentsByGroupAndMonth.all(parseInt(group_id), targetMonth);
     } else {
-      payments = stmts.getPaymentsByMonth.all(targetMonth);
+      payments = await stmts.getPaymentsByMonth.all(targetMonth);
     }
 
     res.json({ month: targetMonth, payments });
@@ -262,22 +227,17 @@ router.get('/payments', (req, res) => {
   }
 });
 
-/**
- * PUT /api/payments/:id
- * Update payment status (mark as paid/partial/unpaid).
- */
-router.put('/payments/:id', (req, res) => {
+router.put('/payments/:id', async (req, res) => {
   try {
     const { amount_paid, status } = req.body;
     const id = parseInt(req.params.id);
 
     let paymentStatus = status;
     if (!paymentStatus) {
-      // Auto-determine status based on amount
       paymentStatus = amount_paid > 0 ? 'paid' : 'unpaid';
     }
 
-    stmts.updatePayment.run({
+    await stmts.updatePayment.run({
       id,
       amount_paid: parseFloat(amount_paid) || 0,
       status: paymentStatus
@@ -290,11 +250,7 @@ router.put('/payments/:id', (req, res) => {
   }
 });
 
-/**
- * POST /api/payments/generate
- * Generate payment records for all students for a given month.
- */
-router.post('/payments/generate', (req, res) => {
+router.post('/payments/generate', async (req, res) => {
   try {
     const { month, amount_due } = req.body;
 
@@ -302,7 +258,7 @@ router.post('/payments/generate', (req, res) => {
       return res.status(400).json({ error: 'يرجى تحديد الشهر والمبلغ المطلوب' });
     }
 
-    const count = generateMonthlyPayments(month, parseFloat(amount_due));
+    const count = await generateMonthlyPayments(month, parseFloat(amount_due));
     res.json({ message: `تم إنشاء ${count} سجل دفع جديد لشهر ${month}` });
   } catch (err) {
     console.error('Payment generate error:', err);
@@ -310,13 +266,10 @@ router.post('/payments/generate', (req, res) => {
   }
 });
 
-/**
- * GET /api/payments/months
- * Get list of months that have payment records.
- */
-router.get('/payments/months', (req, res) => {
+router.get('/payments/months', async (req, res) => {
   try {
-    const months = stmts.getDistinctMonths.all().map(m => m.month);
+    const result = await stmts.getDistinctMonths.all();
+    const months = result.map(m => m.month);
     res.json(months);
   } catch (err) {
     console.error('Payment months error:', err);

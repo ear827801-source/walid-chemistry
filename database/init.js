@@ -1,306 +1,324 @@
-const fs = require('fs');
-const path = require('path');
+const supabase = require('./supabase');
 
-const dbFile = path.join(__dirname, 'data.json');
-
-// Initialize data if not exists
-if (!fs.existsSync(dbFile)) {
-    fs.writeFileSync(dbFile, JSON.stringify({ groups: [], students: [], payments: [] }));
-}
-
-function readDb() {
-    return JSON.parse(fs.readFileSync(dbFile, 'utf8'));
-}
-
-function writeDb(data) {
-    fs.writeFileSync(dbFile, JSON.stringify(data, null, 2));
-}
-
-function generateId(tableData) {
-    return tableData.length > 0 ? Math.max(...tableData.map(r => r.id)) + 1 : 1;
-}
-
-// Emulate prepared statements
+// Emulate prepared statements asynchronously
 const stmts = {
     // Groups
     getAllGroups: {
-        all: () => {
-            const db = readDb();
-            return db.groups.sort((a,b) => a.school_year - b.school_year || a.lesson_day.localeCompare(b.lesson_day));
+        all: async () => {
+            const { data, error } = await supabase.from('groups').select('*').order('school_year', { ascending: true }).order('lesson_day', { ascending: true });
+            if (error) throw error;
+            return data;
         }
     },
     getActiveGroups: {
-        all: () => {
-            const db = readDb();
-            return db.groups.filter(g => g.is_active === 1).sort((a,b) => a.school_year - b.school_year);
+        all: async () => {
+            const { data, error } = await supabase.from('groups').select('*').eq('is_active', 1).order('school_year', { ascending: true });
+            if (error) throw error;
+            return data;
         }
     },
     getGroupsByYear: {
-        all: (year) => {
-            const db = readDb();
-            return db.groups.filter(g => g.is_active === 1 && g.school_year == year);
+        all: async (year) => {
+            const { data, error } = await supabase.from('groups').select('*').eq('is_active', 1).eq('school_year', year);
+            if (error) throw error;
+            return data;
         }
     },
     getGroupById: {
-        get: (id) => {
-            const db = readDb();
-            return db.groups.find(g => g.id == id);
+        get: async (id) => {
+            const { data, error } = await supabase.from('groups').select('*').eq('id', id).single();
+            if (error) return null;
+            return data;
         }
     },
     insertGroup: {
-        run: (data) => {
-            const db = readDb();
+        run: async (data) => {
             const newGroup = {
-                id: generateId(db.groups),
                 name: data.name,
                 school_year: parseInt(data.school_year),
                 lesson_day: data.lesson_day,
                 lesson_time: data.lesson_time,
                 max_students: parseInt(data.max_students) || 30,
                 current_count: 0,
-                is_active: 1,
-                created_at: new Date().toISOString()
+                is_active: 1
             };
-            db.groups.push(newGroup);
-            writeDb(db);
-            return { lastInsertRowid: newGroup.id };
+            const { data: inserted, error } = await supabase.from('groups').insert(newGroup).select('id').single();
+            if (error) throw error;
+            return { lastInsertRowid: inserted.id };
         }
     },
     updateGroup: {
-        run: (data) => {
-            const db = readDb();
-            const index = db.groups.findIndex(g => g.id == data.id);
-            if (index !== -1) {
-                db.groups[index] = { ...db.groups[index], ...data };
-                db.groups[index].school_year = parseInt(db.groups[index].school_year);
-                writeDb(db);
-            }
+        run: async (data) => {
+            const { error } = await supabase.from('groups').update({
+                name: data.name,
+                school_year: data.school_year ? parseInt(data.school_year) : undefined,
+                lesson_day: data.lesson_day,
+                lesson_time: data.lesson_time,
+                max_students: data.max_students ? parseInt(data.max_students) : undefined
+            }).eq('id', data.id);
+            if (error) throw error;
         }
     },
     deleteGroup: {
-        run: (id) => {
-            const db = readDb();
-            const index = db.groups.findIndex(g => g.id == id);
-            if (index !== -1) {
-                db.groups[index].is_active = 0;
-                writeDb(db);
-            }
+        run: async (id) => {
+            const { error } = await supabase.from('groups').update({ is_active: 0 }).eq('id', id);
+            if (error) throw error;
         }
     },
 
     // Students
     getAllStudents: {
-        all: () => {
-            const db = readDb();
-            return db.students.map(s => {
-                const group = db.groups.find(g => g.id === s.group_id);
-                return { ...s, group_name: group ? group.name : null, lesson_day: group ? group.lesson_day : null, lesson_time: group ? group.lesson_time : null };
-            }).sort((a, b) => new Date(b.registered_at) - new Date(a.registered_at));
+        all: async () => {
+            const { data, error } = await supabase.from('students').select(`
+                *,
+                groups (name, lesson_day, lesson_time)
+            `).order('registered_at', { ascending: false });
+            if (error) throw error;
+            return data.map(s => ({
+                ...s,
+                group_name: s.groups?.name || null,
+                lesson_day: s.groups?.lesson_day || null,
+                lesson_time: s.groups?.lesson_time || null
+            }));
         }
     },
     getStudentsByGroup: {
-        all: (groupId) => {
-            const db = readDb();
-            return db.students.filter(s => s.group_id == groupId).map(s => {
-                const group = db.groups.find(g => g.id === s.group_id);
-                return { ...s, group_name: group ? group.name : null };
-            });
+        all: async (groupId) => {
+            const { data, error } = await supabase.from('students').select(`
+                *,
+                groups (name)
+            `).eq('group_id', groupId);
+            if (error) throw error;
+            return data.map(s => ({ ...s, group_name: s.groups?.name || null }));
         }
     },
     getStudentsByYear: {
-        all: (year) => {
-            const db = readDb();
-            return db.students.filter(s => s.school_year == year).map(s => {
-                const group = db.groups.find(g => g.id === s.group_id);
-                return { ...s, group_name: group ? group.name : null };
-            });
+        all: async (year) => {
+            const { data, error } = await supabase.from('students').select(`
+                *,
+                groups (name)
+            `).eq('school_year', year);
+            if (error) throw error;
+            return data.map(s => ({ ...s, group_name: s.groups?.name || null }));
         }
     },
     getStudentByPhone: {
-        get: (phone) => {
-            const db = readDb();
-            return db.students.find(s => s.phone === phone);
+        get: async (phone) => {
+            const { data, error } = await supabase.from('students').select(`
+                *,
+                groups (name)
+            `).eq('phone', phone).single();
+            if (error) return null;
+            return { ...data, group_name: data.groups?.name || null };
         }
     },
     getStudentById: {
-        get: (id) => {
-            const db = readDb();
-            return db.students.find(s => s.id == id);
-        }
-    },
-    insertStudent: {
-        run: (data) => {
-            const db = readDb();
-            const newStudent = {
-                id: generateId(db.students),
-                name: data.name,
-                phone: data.phone,
-                school_year: parseInt(data.school_year),
-                group_id: parseInt(data.group_id),
-                registered_at: new Date().toISOString()
-            };
-            db.students.push(newStudent);
-            
-            const group = db.groups.find(g => g.id == data.group_id);
-            if (group) group.current_count++;
-            
-            writeDb(db);
-            return { lastInsertRowid: newStudent.id };
+        get: async (id) => {
+            const { data, error } = await supabase.from('students').select('*').eq('id', id).single();
+            if (error) return null;
+            return data;
         }
     },
     deleteStudent: {
-        run: (id) => {
-            const db = readDb();
-            const index = db.students.findIndex(s => s.id == id);
-            if (index !== -1) {
-                const student = db.students[index];
-                db.students.splice(index, 1);
-                
-                const group = db.groups.find(g => g.id == student.group_id);
-                if (group && group.current_count > 0) group.current_count--;
-                
-                writeDb(db);
+        run: async (id) => {
+            const student = await stmts.getStudentById.get(id);
+            if (!student) return;
+            
+            const { error } = await supabase.from('students').delete().eq('id', id);
+            if (error) throw error;
+            
+            // Decrement group count
+            if (student.group_id) {
+                const group = await stmts.getGroupById.get(student.group_id);
+                if (group && group.current_count > 0) {
+                    await supabase.from('groups').update({ current_count: group.current_count - 1 }).eq('id', group.id);
+                }
             }
         }
     },
 
     // Payments
     getPaymentsByMonth: {
-        all: (month) => {
-            const db = readDb();
-            return db.payments.filter(p => p.month === month).map(p => {
-                const student = db.students.find(s => s.id == p.student_id);
-                const group = student ? db.groups.find(g => g.id == student.group_id) : null;
-                return { 
-                    ...p, 
-                    student_name: student ? student.name : null, 
-                    phone: student ? student.phone : null,
-                    group_name: group ? group.name : null 
-                };
-            });
+        all: async (month) => {
+            const { data, error } = await supabase.from('payments').select(`
+                *,
+                students (name, phone, groups(name))
+            `).eq('month', month);
+            if (error) throw error;
+            return data.map(p => ({
+                ...p,
+                student_name: p.students?.name || null,
+                phone: p.students?.phone || null,
+                group_name: p.students?.groups?.name || null
+            }));
         }
     },
     getPaymentsByGroupAndMonth: {
-        all: (groupId, month) => {
-            const db = readDb();
-            return db.payments.filter(p => p.month === month).filter(p => {
-                const student = db.students.find(s => s.id == p.student_id);
-                return student && student.group_id == groupId;
-            }).map(p => {
-                const student = db.students.find(s => s.id == p.student_id);
-                const group = db.groups.find(g => g.id == student.group_id);
-                return { 
-                    ...p, 
-                    student_name: student.name, 
-                    phone: student.phone,
-                    group_name: group.name 
-                };
-            });
+        all: async (groupId, month) => {
+            // First get students in group
+            const { data: students, error: err1 } = await supabase.from('students').select('id').eq('group_id', groupId);
+            if (err1) throw err1;
+            
+            if (!students || students.length === 0) return [];
+            const studentIds = students.map(s => s.id);
+
+            const { data, error } = await supabase.from('payments').select(`
+                *,
+                students (name, phone, groups(name))
+            `).eq('month', month).in('student_id', studentIds);
+            
+            if (error) throw error;
+            return data.map(p => ({
+                ...p,
+                student_name: p.students?.name || null,
+                phone: p.students?.phone || null,
+                group_name: p.students?.groups?.name || null
+            }));
         }
     },
     updatePayment: {
-        run: (data) => {
-            const db = readDb();
-            const index = db.payments.findIndex(p => p.id == data.id);
-            if (index !== -1) {
-                db.payments[index].amount_paid = data.amount_paid;
-                db.payments[index].status = data.status;
-                if (data.status === 'paid') db.payments[index].paid_at = new Date().toISOString();
-                writeDb(db);
+        run: async (data) => {
+            const payload = {
+                amount_paid: data.amount_paid,
+                status: data.status
+            };
+            if (data.status === 'paid') {
+                payload.paid_at = new Date().toISOString();
             }
-        }
-    },
-    insertPayment: {
-        run: (data) => {
-            const db = readDb();
-            const existing = db.payments.find(p => p.student_id == data.student_id && p.month === data.month);
-            if (!existing) {
-                db.payments.push({
-                    id: generateId(db.payments),
-                    student_id: data.student_id,
-                    month: data.month,
-                    amount_due: data.amount_due,
-                    amount_paid: 0,
-                    status: 'unpaid',
-                    created_at: new Date().toISOString()
-                });
-                writeDb(db);
-                return { changes: 1 };
-            }
-            return { changes: 0 };
+            const { error } = await supabase.from('payments').update(payload).eq('id', data.id);
+            if (error) throw error;
         }
     },
 
     // Stats
-    getTotalStudents: { get: () => ({ count: readDb().students.length }) },
-    getTotalGroups: { get: () => ({ count: readDb().groups.filter(g => g.is_active === 1).length }) },
-    getPaidCount: { get: (month) => ({ count: readDb().payments.filter(p => p.month === month && p.status === 'paid').length }) },
-    getUnpaidCount: { get: (month) => ({ count: readDb().payments.filter(p => p.month === month && p.status !== 'paid').length }) },
-    getTotalCollected: { get: (month) => ({ total: readDb().payments.filter(p => p.month === month).reduce((sum, p) => sum + Number(p.amount_paid), 0) }) },
-    getRecentStudents: {
-        all: () => {
-            const db = readDb();
-            return db.students.sort((a, b) => new Date(b.registered_at) - new Date(a.registered_at)).slice(0, 10).map(s => {
-                const group = db.groups.find(g => g.id === s.group_id);
-                return { ...s, group_name: group ? group.name : null };
-            });
+    getTotalStudents: { 
+        get: async () => {
+            const { count, error } = await supabase.from('students').select('*', { count: 'exact', head: true });
+            if (error) throw error;
+            return { count };
         }
     },
-    getAllStudentIds: { all: () => readDb().students.map(s => ({ id: s.id })) },
+    getTotalGroups: { 
+        get: async () => {
+            const { count, error } = await supabase.from('groups').select('*', { count: 'exact', head: true }).eq('is_active', 1);
+            if (error) throw error;
+            return { count };
+        }
+    },
+    getPaidCount: { 
+        get: async (month) => {
+            const { count, error } = await supabase.from('payments').select('*', { count: 'exact', head: true }).eq('month', month).eq('status', 'paid');
+            if (error) throw error;
+            return { count };
+        }
+    },
+    getUnpaidCount: { 
+        get: async (month) => {
+            const { count, error } = await supabase.from('payments').select('*', { count: 'exact', head: true }).eq('month', month).neq('status', 'paid');
+            if (error) throw error;
+            return { count };
+        }
+    },
+    getTotalCollected: { 
+        get: async (month) => {
+            const { data, error } = await supabase.from('payments').select('amount_paid').eq('month', month);
+            if (error) throw error;
+            const total = data.reduce((sum, p) => sum + Number(p.amount_paid), 0);
+            return { total };
+        }
+    },
+    getRecentStudents: {
+        all: async () => {
+            const { data, error } = await supabase.from('students').select(`
+                *,
+                groups (name)
+            `).order('registered_at', { ascending: false }).limit(10);
+            if (error) throw error;
+            return data.map(s => ({ ...s, group_name: s.groups?.name || null }));
+        }
+    },
     getDistinctMonths: {
-        all: () => {
-            const db = readDb();
-            const months = [...new Set(db.payments.map(p => p.month))];
+        all: async () => {
+            const { data, error } = await supabase.from('payments').select('month');
+            if (error) throw error;
+            const months = [...new Set(data.map(p => p.month))];
             return months.sort().reverse().map(m => ({ month: m }));
         }
     }
 };
 
-const bookStudent = (studentData) => {
-    const db = readDb();
-    const group = db.groups.find(g => g.id == studentData.group_id);
+const bookStudent = async (studentData) => {
+    const group = await stmts.getGroupById.get(studentData.group_id);
     if (!group) throw new Error('GROUP_NOT_FOUND');
     if (group.is_active !== 1) throw new Error('GROUP_INACTIVE');
     if (group.current_count >= group.max_students) throw new Error('GROUP_FULL');
 
-    if (db.students.find(s => s.phone === studentData.phone)) throw new Error('ALREADY_REGISTERED');
+    const existing = await stmts.getStudentByPhone.get(studentData.phone);
+    if (existing) throw new Error('ALREADY_REGISTERED');
 
-    const result = stmts.insertStudent.run(studentData);
-    return { studentId: result.lastInsertRowid, group };
+    const newStudent = {
+        name: studentData.name,
+        phone: studentData.phone,
+        school_year: parseInt(studentData.school_year),
+        group_id: parseInt(studentData.group_id)
+    };
+
+    const { data: inserted, error } = await supabase.from('students').insert(newStudent).select('id').single();
+    if (error) {
+        if (error.code === '23505') throw new Error('ALREADY_REGISTERED'); // unique constraint violation
+        throw error;
+    }
+
+    // Increment group current_count
+    await supabase.from('groups').update({ current_count: group.current_count + 1 }).eq('id', group.id);
+
+    return { studentId: inserted.id, group };
 };
 
-const removeStudent = (studentId) => {
-    const db = readDb();
-    const student = db.students.find(s => s.id == studentId);
+const removeStudent = async (studentId) => {
+    const student = await stmts.getStudentById.get(studentId);
     if (!student) throw new Error('STUDENT_NOT_FOUND');
-    stmts.deleteStudent.run(studentId);
+    await stmts.deleteStudent.run(studentId);
     return student;
 };
 
-const generateMonthlyPayments = (month, amountDue) => {
-    const db = readDb();
+const generateMonthlyPayments = async (month, amountDue) => {
+    const { data: students, error: err1 } = await supabase.from('students').select('id');
+    if (err1) throw err1;
+
     let count = 0;
-    db.students.forEach(student => {
-        const existing = db.payments.find(p => p.student_id == student.id && p.month === month);
-        if (!existing) {
-            db.payments.push({
-                id: generateId(db.payments),
+    
+    // Batch insert approach to avoid too many DB calls
+    const payload = [];
+    
+    // Check existing for this month
+    const { data: existing, error: err2 } = await supabase.from('payments').select('student_id').eq('month', month);
+    if (err2) throw err2;
+    
+    const existingIds = new Set(existing.map(p => p.student_id));
+
+    for (const student of students) {
+        if (!existingIds.has(student.id)) {
+            payload.push({
                 student_id: student.id,
                 month: month,
                 amount_due: amountDue,
                 amount_paid: 0,
-                status: 'unpaid',
-                created_at: new Date().toISOString()
+                status: 'unpaid'
             });
             count++;
         }
-    });
-    if (count > 0) writeDb(db);
+    }
+
+    if (payload.length > 0) {
+        const { error: err3 } = await supabase.from('payments').insert(payload);
+        if (err3) throw err3;
+    }
+
     return count;
 };
 
 module.exports = {
-    db: null, // No longer used directly
     stmts,
     bookStudent,
     removeStudent,

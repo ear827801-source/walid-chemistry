@@ -1,46 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { validateSignature, extractMessage } = require('../bot/whatsapp');
+const { extractMessage } = require('../bot/whatsapp');
 const { handleMessage } = require('../bot/messageHandler');
 
 /**
- * GET /webhook
- * Meta verification handshake for WhatsApp Cloud API.
- */
-router.get('/', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-
-  if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-    console.log('✅ Webhook verified successfully');
-    return res.status(200).send(challenge);
-  }
-
-  console.warn('⚠️ Webhook verification failed');
-  return res.sendStatus(403);
-});
-
-/**
  * POST /webhook
- * Receives incoming WhatsApp messages from Meta.
- * Acknowledges immediately (200), then processes asynchronously.
+ * Receives incoming WhatsApp messages from Evolution API.
+ * Evolution API sends webhook events for messages.upsert, connection.update, etc.
+ * We only process messages.upsert events.
  */
 router.post('/', (req, res) => {
-  // Always respond 200 immediately (Meta requirement)
+  // Always respond 200 immediately (Evolution API requirement)
   res.sendStatus(200);
 
-  const body = req.body;
-
-  if (body.object !== 'whatsapp_business_account') {
-    return;
-  }
-
-  // Extract message data
-  const messageData = extractMessage(body);
-  if (!messageData) {
-    return; // Status update or non-message event
-  }
+  // Extract message data from Evolution API webhook format
+  const messageData = extractMessage(req.body);
+  if (!messageData) return; // Not a message event, or our own message
 
   console.log(`📩 Message from ${messageData.from}: "${messageData.messageBody}"`);
 

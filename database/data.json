@@ -2,16 +2,55 @@
   "groups": [
     {
       "id": 1,
-      "name": "بنين",
+      "name": "الصف الأول الثانوي",
       "school_year": 1,
-      "lesson_day": "السبت",
-      "lesson_time": "9 صباحا",
+      "lesson_day": "السبت والثلاثاء",
+      "lesson_time": "4 مساءً",
+      "max_students": 100,
+      "current_count": 1,
+      "is_active": 1,
+      "created_at": "2026-08-09T14:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "name": "الصف الثاني الثانوي",
+      "school_year": 2,
+      "lesson_day": "الأحد والأربعاء",
+      "lesson_time": "4 مساءً",
       "max_students": 100,
       "current_count": 0,
       "is_active": 1,
-      "created_at": "2026-08-07T05:33:38.537Z"
+      "created_at": "2026-08-09T14:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "name": "الصف الثالث الثانوي",
+      "school_year": 3,
+      "lesson_day": "الاثنين والخميس",
+      "lesson_time": "4 مساءً",
+      "max_students": 100,
+      "current_count": 1,
+      "is_active": 1,
+      "created_at": "2026-08-09T14:00:00.000Z"
     }
   ],
-  "students": [],
+  "students": [
+    {
+      "id": 1,
+      "name": "اسلام عرفه قطب",
+      "phone": "201035225521",
+      "school_year": 1,
+      "group_id": 1,
+      "registered_at": "2026-08-09T15:11:48.184Z"
+    },
+    {
+      "id": 2,
+      "name": "ايه وليد سمير",
+      "phone": "201061528040",
+      "school_year": 3,
+      "group_id": 3,
+      "registered_at": "2026-08-09T15:15:32.104Z"
+    }
+  ],
   "payments": []
 }
