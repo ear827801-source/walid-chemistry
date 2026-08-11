@@ -27,7 +27,9 @@ async function sendTextMessage(to, text) {
     }, {
       headers: {
         'apikey': apiKey,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'true',
+        'ngrok-skip-browser-warning': 'true'
       },
       timeout: 15000
     });
