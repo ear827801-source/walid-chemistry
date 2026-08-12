@@ -253,34 +253,12 @@ const bookStudent = async (studentData) => {
     if (group.is_active !== 1) throw new Error('GROUP_INACTIVE');
     if (group.current_count >= group.max_students) throw new Error('GROUP_FULL');
 
-    const existing = await stmts.getStudentByPhone.get(studentData.phone);
-    if (existing) throw new Error('ALREADY_REGISTERED');
-
     const newStudent = {
         name: studentData.name,
         phone: studentData.phone,
         school_year: parseInt(studentData.school_year),
         group_id: parseInt(studentData.group_id)
     };
-
-    // If already registered, update their record (allow re-registration)
-    if (existing) {
-        // Decrement old group count if changed
-        if (existing.group_id && existing.group_id !== parseInt(studentData.group_id)) {
-            const oldGroup = await stmts.getGroupById.get(existing.group_id);
-            if (oldGroup && oldGroup.current_count > 0) {
-                await supabase.from('groups').update({ current_count: oldGroup.current_count - 1 }).eq('id', oldGroup.id);
-            }
-        }
-        const { error: updateErr } = await supabase.from('students').update({
-            name: studentData.name,
-            school_year: parseInt(studentData.school_year),
-            group_id: parseInt(studentData.group_id)
-        }).eq('phone', studentData.phone);
-        if (updateErr) throw updateErr;
-        await supabase.from('groups').update({ current_count: group.current_count + 1 }).eq('id', group.id);
-        return { studentId: existing.id, group };
-    }
 
     const { data: inserted, error } = await supabase.from('students').insert(newStudent).select('id').single();
     if (error) {
