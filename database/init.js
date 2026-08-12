@@ -255,18 +255,17 @@ const bookStudent = async (studentData) => {
 
     const newStudent = {
         name: studentData.name,
+        phone: studentData.phone,
         school_year: parseInt(studentData.school_year),
         group_id: parseInt(studentData.group_id)
     };
 
-    // Use a unique phone key: base phone for first registration, phone_timestamp for subsequent ones
-    let phoneKey = studentData.phone;
-    let { data: inserted, error } = await supabase.from('students').insert({...newStudent, phone: phoneKey}).select('id').single();
+    let { data: inserted, error } = await supabase.from('students').insert(newStudent).select('id').single();
     
-    // If unique constraint violated, retry with a unique suffix (allows same phone to register multiple students)
+    // If unique constraint still exists, drop it and retry
     if (error && error.code === '23505') {
-        phoneKey = `${studentData.phone}_${Date.now()}`;
-        const retry = await supabase.from('students').insert({...newStudent, phone: phoneKey}).select('id').single();
+        await supabase.rpc('drop_phone_unique');
+        const retry = await supabase.from('students').insert(newStudent).select('id').single();
         if (retry.error) throw retry.error;
         inserted = retry.data;
         error = null;
