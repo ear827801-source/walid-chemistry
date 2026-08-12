@@ -2,6 +2,7 @@ if (true) {
     const paymentsTbody = document.getElementById('payments-tbody');
     const monthFilter = document.getElementById('payment-month-filter');
     const groupFilter = document.getElementById('payment-group-filter');
+    const searchInput = document.getElementById('payment-search-input');
     
     const generateModal = document.getElementById('payment-generate-modal');
     const generateForm = document.getElementById('payment-generate-form');
@@ -9,6 +10,8 @@ if (true) {
     const updateModal = document.getElementById('payment-update-modal');
     const updateForm = document.getElementById('payment-update-form');
     
+    let currentPayments = [];
+
     // Initialize months dropdown
     async function initMonths() {
         try {
@@ -17,7 +20,6 @@ if (true) {
             
             monthFilter.innerHTML = '';
             
-            // Ensure current month is always available
             if (!months.includes(currentMonth)) {
                 months.unshift(currentMonth);
             }
@@ -34,12 +36,32 @@ if (true) {
             console.error('Failed to init months', err);
         }
     }
+
+    // Populate groups filter dropdown
+    async function initGroupFilter() {
+        try {
+            if (groupFilter.options.length <= 1) {
+                const groups = await fetchAPI('/groups');
+                groupFilter.innerHTML = '<option value="">كل المجموعات</option>';
+                groups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.id;
+                    opt.textContent = g.name;
+                    groupFilter.appendChild(opt);
+                });
+            }
+        } catch (err) {
+            console.error('Failed to load groups for filter', err);
+        }
+    }
     
     // Call init on load
     initMonths();
+    initGroupFilter();
     
     window.loadPayments = async function() {
         try {
+            await initGroupFilter();
             const month = monthFilter.value || new Date().toISOString().slice(0, 7);
             const groupId = groupFilter.value;
             
@@ -47,7 +69,8 @@ if (true) {
             if (groupId) query += `&group_id=${groupId}`;
             
             const data = await fetchAPI(`/payments${query}`);
-            renderPaymentsTable(data.payments);
+            currentPayments = data.payments || [];
+            renderPaymentsTable(currentPayments);
         } catch (err) {
             console.error('Failed to load payments', err);
             alert('حدث خطأ في تحميل سجلات الدفع');
@@ -58,17 +81,27 @@ if (true) {
         paymentsTbody.innerHTML = '';
         
         let paidCount = 0;
+        let partialCount = 0;
         let unpaidCount = 0;
+
+        const searchTerm = (searchInput ? searchInput.value : '').trim().toLowerCase();
         
-        if (payments.length === 0) {
+        const filteredPayments = payments.filter(p => {
+            if (!searchTerm) return true;
+            return (p.student_name || '').toLowerCase().includes(searchTerm) ||
+                   (p.group_name || '').toLowerCase().includes(searchTerm);
+        });
+        
+        if (filteredPayments.length === 0) {
             paymentsTbody.innerHTML = `
                 <tr><td colspan="6" style="text-align:center;">
                     لا توجد سجلات دفع لهذا الشهر.<br>
                     انقر على "إنشاء كشف الشهر" لتوليد سجلات لجميع الطلاب.
                 </td></tr>`;
         } else {
-            payments.forEach(payment => {
+            filteredPayments.forEach((payment, idx) => {
                 if (payment.status === 'paid') paidCount++;
+                else if (payment.status === 'partial') partialCount++;
                 else unpaidCount++;
                 
                 let badgeClass = 'badge-danger';
@@ -76,39 +109,85 @@ if (true) {
                 
                 if (payment.status === 'paid') {
                     badgeClass = 'badge-success';
-                    statusText = 'تم الدفع';
+                    statusText = 'تم الدفع ✓';
                 } else if (payment.status === 'partial') {
                     badgeClass = 'badge-warning';
-                    statusText = 'دفع جزئي';
+                    statusText = 'دفع جزئي ⚠️';
                 }
                 
                 const tr = document.createElement('tr');
                 tr.classList.add('payment-row-clickable');
-                tr.title = 'اضغط لتحديث الدفع';
+                tr.title = 'اضغط على الحالة للتعليم كمدفوع | كليك يمين لتسجيل دفع جزئي أو تعديل المبلغ';
+                
                 tr.innerHTML = `
-                    <td>
-                        <div>${payment.student_name}</div>
-                        <div class="text-muted" dir="ltr" style="text-align:right">${payment.phone}</div>
-                    </td>
+                    <td style="text-align: center; font-weight: bold; color: var(--accent-2);">${idx + 1}</td>
+                    <td style="font-weight: 600;">${payment.student_name}</td>
                     <td>${payment.group_name || '-'}</td>
                     <td>${payment.amount_due} ج.م</td>
                     <td>${payment.amount_paid} ج.م</td>
-                    <td><span class="badge ${badgeClass}">${statusText}</span></td>
+                    <td>
+                        <span class="badge ${badgeClass} direct-status-btn" 
+                              style="cursor: pointer; user-select: none; transition: transform 0.15s ease;"
+                              title="كليك شمال: تحويل إلى (تم الدفع) | كليك يمين: تحديد دفع جزئي">
+                            ${statusText}
+                        </span>
+                    </td>
                 `;
-                tr.addEventListener('click', () => {
+
+                // Direct action on status badge click (Left Click = Mark Paid / Unpaid toggle)
+                const statusBadge = tr.querySelector('.direct-status-btn');
+                statusBadge.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const newStatus = payment.status === 'paid' ? 'unpaid' : 'paid';
+                    const newAmount = newStatus === 'paid' ? payment.amount_due : 0;
+                    
+                    try {
+                        showLoading();
+                        await fetchAPI(`/payments/${payment.id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({ amount_paid: newAmount, status: newStatus })
+                        });
+                        window.loadPayments();
+                        if (typeof loadOverviewStats === 'function') loadOverviewStats();
+                    } catch (err) {
+                        alert(err.message);
+                    } finally {
+                        hideLoading();
+                    }
+                });
+
+                // Right click (contextmenu) anywhere on row or badge to open modal for partial payment
+                tr.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
                     openUpdateModal(payment.id, payment.student_name, payment.amount_paid, payment.status);
                 });
+
+                // Also allow left click on row to open modal
+                tr.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('direct-status-btn')) return;
+                    openUpdateModal(payment.id, payment.student_name, payment.amount_paid, payment.status);
+                });
+
                 paymentsTbody.appendChild(tr);
+            });
         }
         
-        // Update mini stats
-        document.getElementById('pay-stat-paid').textContent = paidCount;
-        document.getElementById('pay-stat-unpaid').textContent = unpaidCount;
+        // Update mini stats counters
+        const paidElem = document.getElementById('pay-stat-paid');
+        const partialElem = document.getElementById('pay-stat-partial');
+        const unpaidElem = document.getElementById('pay-stat-unpaid');
+
+        if (paidElem) paidElem.textContent = paidCount;
+        if (partialElem) partialElem.textContent = partialCount;
+        if (unpaidElem) unpaidElem.textContent = unpaidCount;
     }
     
-    // Event listeners
+    // Event listeners for filters and search
     monthFilter.addEventListener('change', window.loadPayments);
     groupFilter.addEventListener('change', window.loadPayments);
+    if (searchInput) {
+        searchInput.addEventListener('input', () => renderPaymentsTable(currentPayments));
+    }
     
     document.getElementById('btn-generate-payments').addEventListener('click', () => {
         document.getElementById('generate-month').value = new Date().toISOString().slice(0, 7);
@@ -119,13 +198,18 @@ if (true) {
         e.preventDefault();
         
         const month = document.getElementById('generate-month').value;
-        const amount_due = document.getElementById('generate-amount').value;
+        const amount1 = document.getElementById('generate-amount-1') ? document.getElementById('generate-amount-1').value : 200;
+        const amount2 = document.getElementById('generate-amount-2') ? document.getElementById('generate-amount-2').value : 220;
+        const amount3 = document.getElementById('generate-amount-3') ? document.getElementById('generate-amount-3').value : 250;
         
         try {
             showLoading();
             const res = await fetchAPI('/payments/generate', {
                 method: 'POST',
-                body: JSON.stringify({ month, amount_due })
+                body: JSON.stringify({ 
+                    month, 
+                    amountsByYear: { 1: amount1, 2: amount2, 3: amount3 } 
+                })
             });
             
             alert(res.message);
@@ -168,7 +252,7 @@ if (true) {
             
             updateModal.classList.remove('active');
             window.loadPayments();
-            loadOverviewStats(); // Update global stats
+            if (typeof loadOverviewStats === 'function') loadOverviewStats();
         } catch (err) {
             alert(err.message);
         } finally {

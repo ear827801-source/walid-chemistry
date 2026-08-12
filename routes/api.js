@@ -252,13 +252,14 @@ router.put('/payments/:id', async (req, res) => {
 
 router.post('/payments/generate', async (req, res) => {
   try {
-    const { month, amount_due } = req.body;
+    const { month, amountsByYear, amount_due } = req.body;
 
-    if (!month || amount_due === undefined) {
-      return res.status(400).json({ error: 'يرجى تحديد الشهر والمبلغ المطلوب' });
+    if (!month) {
+      return res.status(400).json({ error: 'يرجى تحديد الشهر' });
     }
 
-    const count = await generateMonthlyPayments(month, parseFloat(amount_due));
+    const payload = amountsByYear || parseFloat(amount_due) || 200;
+    const count = await generateMonthlyPayments(month, payload);
     res.json({ message: `تم إنشاء ${count} سجل دفع جديد لشهر ${month}` });
   } catch (err) {
     console.error('Payment generate error:', err);

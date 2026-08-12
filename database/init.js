@@ -286,8 +286,8 @@ const removeStudent = async (studentId) => {
     return student;
 };
 
-const generateMonthlyPayments = async (month, amountDue) => {
-    const { data: students, error: err1 } = await supabase.from('students').select('id');
+const generateMonthlyPayments = async (month, amountDueOrObject) => {
+    const { data: students, error: err1 } = await supabase.from('students').select('id, school_year');
     if (err1) throw err1;
 
     let count = 0;
@@ -303,10 +303,18 @@ const generateMonthlyPayments = async (month, amountDue) => {
 
     for (const student of students) {
         if (!existingIds.has(student.id)) {
+            let due = 200;
+            if (typeof amountDueOrObject === 'object' && amountDueOrObject !== null) {
+                const yearKey = student.school_year || 1;
+                due = parseFloat(amountDueOrObject[yearKey]) || parseFloat(amountDueOrObject[1]) || 200;
+            } else {
+                due = parseFloat(amountDueOrObject) || 200;
+            }
+
             payload.push({
                 student_id: student.id,
                 month: month,
-                amount_due: amountDue,
+                amount_due: due,
                 amount_paid: 0,
                 status: 'unpaid'
             });
