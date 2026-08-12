@@ -471,3 +471,22 @@ option { background: var(--bg-darker); color: #fff; }
 
 .text-muted { color: var(--text-muted); font-size: 0.9rem; }
 .payment-stats-mini { display: flex; gap: 10px; margin-bottom: 15px; }
+
+/* Clickable payment rows */
+.payment-row-clickable {
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    border-radius: 8px;
+}
+
+.payment-row-clickable:hover {
+    background: hsla(138, 43%, 50%, 0.12) !important;
+    transform: scale(1.01);
+    box-shadow: 0 4px 20px rgba(0, 191, 165, 0.15);
+    outline: 1.5px solid hsla(var(--accent-2), 0.4);
+}
+
+.payment-row-clickable:active {
+    transform: scale(0.99);
+    background: hsla(138, 43%, 50%, 0.2) !important;
+}

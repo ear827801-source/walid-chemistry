@@ -83,6 +83,8 @@ if (true) {
                 }
                 
                 const tr = document.createElement('tr');
+                tr.classList.add('payment-row-clickable');
+                tr.title = 'اضغط لتحديث الدفع';
                 tr.innerHTML = `
                     <td>
                         <div>${payment.student_name}</div>
@@ -92,26 +94,11 @@ if (true) {
                     <td>${payment.amount_due} ج.م</td>
                     <td>${payment.amount_paid} ج.م</td>
                     <td><span class="badge ${badgeClass}">${statusText}</span></td>
-                    <td>
-                        <button class="btn btn-outline btn-sm update-payment" 
-                            data-id="${payment.id}"
-                            data-name="${payment.student_name}"
-                            data-paid="${payment.amount_paid}"
-                            data-status="${payment.status}">
-                            تحديث الدفع
-                        </button>
-                    </td>
                 `;
-                paymentsTbody.appendChild(tr);
-            });
-            
-            // Bind update buttons
-            document.querySelectorAll('.update-payment').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const ds = e.currentTarget.dataset;
-                    openUpdateModal(ds.id, ds.name, ds.paid, ds.status);
+                tr.addEventListener('click', () => {
+                    openUpdateModal(payment.id, payment.student_name, payment.amount_paid, payment.status);
                 });
-            });
+                paymentsTbody.appendChild(tr);
         }
         
         // Update mini stats

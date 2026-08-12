@@ -24,22 +24,26 @@ async function handleMessage(messageData) {
   const isBookingTrigger = /(حجز|احجز|أحجز|إحجز|الحجز)/i.test(text);
 
   if (!session && !isBookingTrigger) {
-    console.log(`⏭️ Ignored message from ${from}: "${text}" - Does not contain booking trigger`);
+    try {
+      // Use OpenAI to reply to general messages
+      const completion = await openai.chat.completions.create({
+        messages: [
+          { role: 'system', content: 'أنت مساعد ذكي لمركز مستر وليد قنديل للكيمياء. تجيب بأسلوب مهذب ومختصر. إذا سأل الطالب عن الحجز، أخبره أن يكتب كلمة "حجز" للبدء في التسجيل.' },
+          { role: 'user', content: text }
+        ],
+        model: 'gpt-4o-mini',
+      });
+      const aiResponse = completion.choices[0].message.content;
+      console.log(`🤖 AI replied to ${from}: "${aiResponse}"`);
+      await sendTextMessage(from, aiResponse);
+    } catch (err) {
+      console.error('OpenAI Error:', err.message);
+      await sendTextMessage(from, 'عفواً، لا يمكنني الرد الآن. إذا كنت ترغب في الحجز، فقط اكتب كلمة "حجز".');
+    }
     return;
   }
 
-  // Check if student is already registered in DB
-  if (!session && isBookingTrigger) {
-    const existingStudent = await stmts.getStudentByPhone.get(from);
-    if (existingStudent) {
-      console.log(`ℹ️ Student ${from} is already registered (${existingStudent.name})`);
-      await sendTextMessage(
-        from,
-        `أهلاً بك يا ${existingStudent.name}! 👋\nأنت مسجل بالفعل في (${existingStudent.group_name || 'المجموعة'}).\nإذا كان لديك أي استفسار، يسعدنا تواصلك معنا.`
-      );
-      return;
-    }
-  }
+  // (No blocking for already-registered students — allow re-registration)
 
   // Try processing via rule-based flow first for instant and reliable database integration
   try {

@@ -263,6 +263,25 @@ const bookStudent = async (studentData) => {
         group_id: parseInt(studentData.group_id)
     };
 
+    // If already registered, update their record (allow re-registration)
+    if (existing) {
+        // Decrement old group count if changed
+        if (existing.group_id && existing.group_id !== parseInt(studentData.group_id)) {
+            const oldGroup = await stmts.getGroupById.get(existing.group_id);
+            if (oldGroup && oldGroup.current_count > 0) {
+                await supabase.from('groups').update({ current_count: oldGroup.current_count - 1 }).eq('id', oldGroup.id);
+            }
+        }
+        const { error: updateErr } = await supabase.from('students').update({
+            name: studentData.name,
+            school_year: parseInt(studentData.school_year),
+            group_id: parseInt(studentData.group_id)
+        }).eq('phone', studentData.phone);
+        if (updateErr) throw updateErr;
+        await supabase.from('groups').update({ current_count: group.current_count + 1 }).eq('id', group.id);
+        return { studentId: existing.id, group };
+    }
+
     const { data: inserted, error } = await supabase.from('students').insert(newStudent).select('id').single();
     if (error) {
         if (error.code === '23505') throw new Error('ALREADY_REGISTERED'); // unique constraint violation
