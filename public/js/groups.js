@@ -98,7 +98,16 @@ if (true) {
         document.getElementById('group-id').value = group ? group.id : '';
         document.getElementById('group-name').value = group ? group.name : '';
         document.getElementById('group-year').value = group ? group.school_year : '1';
-        document.getElementById('group-day').value = group ? group.lesson_day : 'السبت';
+        
+        if (group && group.lesson_day) {
+            const parts = group.lesson_day.split(' و');
+            document.getElementById('group-day-1').value = parts[0] ? parts[0].trim() : 'السبت';
+            document.getElementById('group-day-2').value = parts[1] ? parts[1].trim() : 'الثلاثاء';
+        } else {
+            document.getElementById('group-day-1').value = 'السبت';
+            document.getElementById('group-day-2').value = 'الثلاثاء';
+        }
+
         document.getElementById('group-time').value = group ? group.lesson_time : '';
         document.getElementById('group-max').value = group ? group.max_students : '30';
         
@@ -113,10 +122,14 @@ if (true) {
         e.preventDefault();
         
         const id = document.getElementById('group-id').value;
+        const day1 = document.getElementById('group-day-1').value;
+        const day2 = document.getElementById('group-day-2').value;
+        const lesson_day = day1 === day2 ? day1 : `${day1} و${day2}`;
+
         const groupData = {
             name: document.getElementById('group-name').value,
             school_year: document.getElementById('group-year').value,
-            lesson_day: document.getElementById('group-day').value,
+            lesson_day: lesson_day,
             lesson_time: document.getElementById('group-time').value,
             max_students: document.getElementById('group-max').value
         };
