@@ -31,14 +31,16 @@ if (true) {
             return;
         }
         
-        students.forEach(student => {
+        students.forEach((student, idx) => {
             const date = new Date(student.registered_at).toLocaleDateString('ar-EG');
             const yearStr = `الصف ${student.school_year === 1 ? 'الأول' : student.school_year === 2 ? 'الثاني' : 'الثالث'}`;
-            
+            const cleanPhone = (student.phone || '').split('_')[0];
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
+                <td style="text-align: center; font-weight: bold; color: var(--accent-2);">${idx + 1}</td>
                 <td>${student.name}</td>
-                <td dir="ltr" style="text-align: right;">${student.phone}</td>
+                <td dir="ltr" style="text-align: right;">${cleanPhone}</td>
                 <td>${yearStr}</td>
                 <td>${student.group_name || '-'}</td>
                 <td>${date}</td>
