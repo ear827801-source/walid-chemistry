@@ -9,6 +9,8 @@ if (true) {
     
     const updateModal = document.getElementById('payment-update-modal');
     const updateForm = document.getElementById('payment-update-form');
+
+    const btnExportUnpaid = document.getElementById('btn-export-unpaid');
     
     let currentPayments = [];
     let activeStatusFilter = null; // null (all), 'paid', 'partial', 'unpaid'
@@ -86,12 +88,182 @@ if (true) {
         if (badges.paid) badges.paid.addEventListener('click', () => setStatusFilter('paid'));
         if (badges.partial) badges.partial.addEventListener('click', () => setStatusFilter('partial'));
         if (badges.unpaid) badges.unpaid.addEventListener('click', () => setStatusFilter('unpaid'));
+
+        // Right-click (contextmenu) on unpaid badge to trigger PDF export directly
+        if (badges.unpaid) {
+            badges.unpaid.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                exportUnpaidPDF();
+            });
+        }
+    }
+
+    // Export printable document / PDF of unpaid students
+    function exportUnpaidPDF() {
+        const month = monthFilter.value || new Date().toISOString().slice(0, 7);
+        const selectedGroupText = groupFilter.options[groupFilter.selectedIndex] ? groupFilter.options[groupFilter.selectedIndex].text : 'كل المجموعات';
+        
+        // Filter students who haven't paid or paid partially
+        const unpaidStudents = currentPayments.filter(p => p.status === 'unpaid' || p.status === 'partial');
+
+        if (unpaidStudents.length === 0) {
+            alert('🎉 رائع! لا يوجد طلاب غير مسددين لهذا الشهر والفلتر المحدد.');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+        const todayStr = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        let rowsHtml = '';
+        unpaidStudents.forEach((student, idx) => {
+            const due = Number(student.amount_due) || 0;
+            const paid = Number(student.amount_paid) || 0;
+            const remaining = due - paid;
+
+            let statusText = `لم يدفع (${due} ج.م)`;
+            if (student.status === 'partial') {
+                statusText = `دفع جزئي (متبقي ${remaining} ج.م من ${due})`;
+            }
+            
+            rowsHtml += `
+                <tr>
+                    <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
+                    <td style="font-weight: bold; font-size: 15px;">${student.student_name}</td>
+                    <td>${student.group_name || '-'}</td>
+                    <td dir="ltr" style="text-align: right; font-family: monospace;">${student.phone || '-'}</td>
+                    <td style="color: #c0392b; font-weight: bold;">${statusText}</td>
+                    <td style="width: 140px;"></td>
+                </tr>
+            `;
+        });
+
+        const docHtml = `
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8">
+                <title>كشف غير المسددين - ${month}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
+                    body {
+                        font-family: 'Tajawal', sans-serif;
+                        margin: 20px;
+                        color: #111;
+                        background: #fff;
+                        direction: rtl;
+                    }
+                    .header {
+                        text-align: center;
+                        border-bottom: 2px solid #222;
+                        padding-bottom: 12px;
+                        margin-bottom: 18px;
+                    }
+                    .header h1 {
+                        margin: 0 0 5px 0;
+                        font-size: 22px;
+                        color: #111;
+                    }
+                    .header h2 {
+                        margin: 0;
+                        font-size: 16px;
+                        color: #555;
+                    }
+                    .meta-info {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 13px;
+                        margin-bottom: 15px;
+                        background: #f8f9fa;
+                        padding: 10px 15px;
+                        border: 1px solid #ddd;
+                        border-radius: 6px;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-top: 10px;
+                    }
+                    th, td {
+                        border: 1px solid #333;
+                        padding: 9px 12px;
+                        text-align: right;
+                        font-size: 13px;
+                    }
+                    th {
+                        background-color: #eee;
+                        font-weight: bold;
+                    }
+                    .footer {
+                        margin-top: 25px;
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 13px;
+                        font-weight: bold;
+                        border-top: 1px solid #ccc;
+                        padding-top: 10px;
+                    }
+                    @media print {
+                        @page { margin: 12mm; size: A4 portrait; }
+                        body { margin: 0; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>🧪 مركز أ / وليد قنديل للكيمياء</h1>
+                    <h2>كشف مراجعة وتأكيد اشتراكات الطلاب غير المسددين</h2>
+                </div>
+
+                <div class="meta-info">
+                    <div><strong>الشهر:</strong> ${month}</div>
+                    <div><strong>المجموعة:</strong> ${selectedGroupText}</div>
+                    <div><strong>تاريخ التصدير:</strong> ${todayStr}</div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 40px; text-align: center;">م</th>
+                            <th>اسم الطالب</th>
+                            <th>المجموعة</th>
+                            <th>رقم الواتساب</th>
+                            <th>المبلغ / حالة الدفع</th>
+                            <th style="width: 140px;">ملاحظات / التوقيع في الحصة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    <div>إجمالي الطلاب المطلوبين للمتابعة: ${unpaidStudents.length} طالب</div>
+                    <div>توقيع الأستاذ / المساعد: .......................................</div>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                        }, 300);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(docHtml);
+        printWindow.document.close();
     }
     
     // Call init on load
     initMonths();
     initGroupFilter();
     setupStatusFilterBadges();
+
+    if (btnExportUnpaid) {
+        btnExportUnpaid.addEventListener('click', exportUnpaidPDF);
+    }
     
     window.loadPayments = async function() {
         try {
@@ -142,10 +314,15 @@ if (true) {
         });
         
         if (filteredPayments.length === 0) {
+            let emptyMsg = 'لا توجد سجلات تطابق الفلتر المحدد.';
+            if (activeStatusFilter === 'unpaid') emptyMsg = '🎉 لا يوجد طلاب بحالة (لم يتم الدفع) لهذا الشهر والحمد لله!';
+            else if (activeStatusFilter === 'partial') emptyMsg = 'لا يوجد طلاب بحالة (دفع جزئي) لهذا الشهر.';
+            else if (activeStatusFilter === 'paid') emptyMsg = 'لا يوجد طلاب بحالة (تم الدفع) لهذا الشهر بعد.';
+
             paymentsTbody.innerHTML = `
-                <tr><td colspan="6" style="text-align:center;">
-                    لا توجد سجلات تطابق الفلتر المحدد.<br>
-                    انقر على "الكل" لإظهار جميع الطلاب، أو انقر على "إنشاء كشف الشهر" لتوليد كشف جديد.
+                <tr><td colspan="6" style="text-align:center; padding: 20px;">
+                    ${emptyMsg}<br>
+                    <small style="opacity: 0.8;">انقر على "الكل" لإظهار جميع الطلاب.</small>
                 </td></tr>`;
         } else {
             filteredPayments.forEach((payment, idx) => {

@@ -198,14 +198,17 @@
                         <button class="btn btn-outline" id="btn-generate-payments">
                             <ion-icon name="refresh"></ion-icon> إنشاء كشف الشهر
                         </button>
+                        <button class="btn btn-outline" id="btn-export-unpaid" style="color: #e74c3c; border-color: rgba(231, 76, 60, 0.4);" title="تصدير كشف غير المسددين طباعة أو PDF">
+                            <ion-icon name="document-text-outline"></ion-icon> طباعة غير المسددين (PDF)
+                        </button>
                     </div>
                 </div>
                 
                 <div class="payment-stats-mini">
-                    <div class="badge badge-primary filter-badge active" id="pay-stat-all-btn" style="cursor: pointer; user-select: none;">الكل: <span id="pay-stat-all">0</span></div>
-                    <div class="badge badge-success filter-badge" id="pay-stat-paid-btn" style="cursor: pointer; user-select: none;">تم الدفع: <span id="pay-stat-paid">0</span></div>
-                    <div class="badge badge-warning filter-badge" id="pay-stat-partial-btn" style="cursor: pointer; user-select: none;">دفع جزئي: <span id="pay-stat-partial">0</span></div>
-                    <div class="badge badge-danger filter-badge" id="pay-stat-unpaid-btn" style="cursor: pointer; user-select: none;">لم يتم الدفع: <span id="pay-stat-unpaid">0</span></div>
+                    <div class="badge badge-primary filter-badge active" id="pay-stat-all-btn" style="cursor: pointer; user-select: none;" title="عرض جميع الطلاب">الكل: <span id="pay-stat-all">0</span></div>
+                    <div class="badge badge-success filter-badge" id="pay-stat-paid-btn" style="cursor: pointer; user-select: none;" title="عرض الطلاب المسددين">تم الدفع: <span id="pay-stat-paid">0</span></div>
+                    <div class="badge badge-warning filter-badge" id="pay-stat-partial-btn" style="cursor: pointer; user-select: none;" title="عرض الطلاب المسددين جزئياً">دفع جزئي: <span id="pay-stat-partial">0</span></div>
+                    <div class="badge badge-danger filter-badge" id="pay-stat-unpaid-btn" style="cursor: pointer; user-select: none;" title="كليك شمال: عرض غير المسددين | كليك يمين: طباعة/تصدير PDF لغير المسددين">لم يتم الدفع: <span id="pay-stat-unpaid">0</span></div>
                 </div>
 
                 <div class="table-responsive">
