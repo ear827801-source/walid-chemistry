@@ -273,6 +273,16 @@ const bookStudent = async (studentData) => {
         throw error;
     }
 
+    // Auto-create payment entry for current month if not existing
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    await supabase.from('payments').insert({
+        student_id: inserted.id,
+        month: currentMonth,
+        amount_due: 200,
+        amount_paid: 0,
+        status: 'unpaid'
+    }).catch(() => {}); // ignore if duplicate
+
     // Increment group current_count
     await supabase.from('groups').update({ current_count: group.current_count + 1 }).eq('id', group.id);
 

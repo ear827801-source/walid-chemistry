@@ -213,6 +213,9 @@ router.get('/payments', async (req, res) => {
     const { month, group_id } = req.query;
     const targetMonth = month || new Date().toISOString().slice(0, 7);
 
+    // Auto-sync missing payment records for any newly registered students for this month
+    await generateMonthlyPayments(targetMonth, 200).catch(() => {});
+
     let payments;
     if (group_id) {
       payments = await stmts.getPaymentsByGroupAndMonth.all(parseInt(group_id), targetMonth);
