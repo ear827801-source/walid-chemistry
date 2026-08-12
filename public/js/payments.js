@@ -11,6 +11,7 @@ if (true) {
     const updateForm = document.getElementById('payment-update-form');
     
     let currentPayments = [];
+    let activeStatusFilter = null; // null (all), 'paid', 'partial', 'unpaid'
 
     // Initialize months dropdown
     async function initMonths() {
@@ -54,10 +55,43 @@ if (true) {
             console.error('Failed to load groups for filter', err);
         }
     }
+
+    // Setup filter badge click listeners (الكل، تم الدفع، دفع جزئي، لم يتم الدفع)
+    function setupStatusFilterBadges() {
+        const badges = {
+            all: document.getElementById('pay-stat-all-btn'),
+            paid: document.getElementById('pay-stat-paid-btn'),
+            partial: document.getElementById('pay-stat-partial-btn'),
+            unpaid: document.getElementById('pay-stat-unpaid-btn')
+        };
+
+        const setStatusFilter = (status) => {
+            activeStatusFilter = status;
+            
+            // Update active styles
+            Object.keys(badges).forEach(key => {
+                if (badges[key]) {
+                    if ((key === 'all' && activeStatusFilter === null) || key === activeStatusFilter) {
+                        badges[key].classList.add('active');
+                    } else {
+                        badges[key].classList.remove('active');
+                    }
+                }
+            });
+
+            renderPaymentsTable(currentPayments);
+        };
+
+        if (badges.all) badges.all.addEventListener('click', () => setStatusFilter(null));
+        if (badges.paid) badges.paid.addEventListener('click', () => setStatusFilter('paid'));
+        if (badges.partial) badges.partial.addEventListener('click', () => setStatusFilter('partial'));
+        if (badges.unpaid) badges.unpaid.addEventListener('click', () => setStatusFilter('unpaid'));
+    }
     
     // Call init on load
     initMonths();
     initGroupFilter();
+    setupStatusFilterBadges();
     
     window.loadPayments = async function() {
         try {
@@ -86,24 +120,35 @@ if (true) {
 
         const searchTerm = (searchInput ? searchInput.value : '').trim().toLowerCase();
         
+        // Calculate counts across all records for the month/group
+        payments.forEach(payment => {
+            if (payment.status === 'paid') paidCount++;
+            else if (payment.status === 'partial') partialCount++;
+            else unpaidCount++;
+        });
+
+        // Filter payments by search term and selected status badge
         const filteredPayments = payments.filter(p => {
-            if (!searchTerm) return true;
-            return (p.student_name || '').toLowerCase().includes(searchTerm) ||
-                   (p.group_name || '').toLowerCase().includes(searchTerm);
+            // Filter by search
+            if (searchTerm && !(p.student_name || '').toLowerCase().includes(searchTerm) &&
+                !(p.group_name || '').toLowerCase().includes(searchTerm)) {
+                return false;
+            }
+            // Filter by status badge click
+            if (activeStatusFilter && p.status !== activeStatusFilter) {
+                return false;
+            }
+            return true;
         });
         
         if (filteredPayments.length === 0) {
             paymentsTbody.innerHTML = `
                 <tr><td colspan="6" style="text-align:center;">
-                    لا توجد سجلات دفع لهذا الشهر.<br>
-                    انقر على "إنشاء كشف الشهر" لتوليد سجلات لجميع الطلاب.
+                    لا توجد سجلات تطابق الفلتر المحدد.<br>
+                    انقر على "الكل" لإظهار جميع الطلاب، أو انقر على "إنشاء كشف الشهر" لتوليد كشف جديد.
                 </td></tr>`;
         } else {
             filteredPayments.forEach((payment, idx) => {
-                if (payment.status === 'paid') paidCount++;
-                else if (payment.status === 'partial') partialCount++;
-                else unpaidCount++;
-                
                 let badgeClass = 'badge-danger';
                 let statusText = 'لم يتم الدفع';
                 
@@ -173,10 +218,12 @@ if (true) {
         }
         
         // Update mini stats counters
+        const allElem = document.getElementById('pay-stat-all');
         const paidElem = document.getElementById('pay-stat-paid');
         const partialElem = document.getElementById('pay-stat-partial');
         const unpaidElem = document.getElementById('pay-stat-unpaid');
 
+        if (allElem) allElem.textContent = payments.length;
         if (paidElem) paidElem.textContent = paidCount;
         if (partialElem) partialElem.textContent = partialCount;
         if (unpaidElem) unpaidElem.textContent = unpaidCount;

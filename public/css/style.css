@@ -490,3 +490,24 @@ option { background: var(--bg-darker); color: #fff; }
     transform: scale(0.99);
     background: hsla(138, 43%, 50%, 0.2) !important;
 }
+
+/* Filter badge interactive styles */
+.filter-badge {
+    transition: all 0.2s ease;
+    opacity: 0.7;
+    border: 2px solid transparent;
+}
+
+.filter-badge:hover {
+    opacity: 1;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.filter-badge.active {
+    opacity: 1;
+    transform: scale(1.05);
+    border-color: #ffffff;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+}
+
