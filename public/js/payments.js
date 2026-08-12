@@ -122,17 +122,20 @@ if (true) {
 
             let statusText = `لم يدفع (${due} ج.م)`;
             if (student.status === 'partial') {
-                statusText = `دفع جزئي (متبقي ${remaining} ج.م من ${due})`;
+                statusText = `دفع جزئي (متبقي ${remaining} ج.م)`;
             }
+            
+            // Clean phone number (remove any suffix after _)
+            const cleanPhone = (student.phone || '').split('_')[0];
             
             rowsHtml += `
                 <tr>
-                    <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
-                    <td style="font-weight: bold; font-size: 15px;">${student.student_name}</td>
-                    <td>${student.group_name || '-'}</td>
-                    <td dir="ltr" style="text-align: right; font-family: monospace;">${student.phone || '-'}</td>
-                    <td style="color: #c0392b; font-weight: bold;">${statusText}</td>
-                    <td style="width: 140px;"></td>
+                    <td style="text-align: center; font-weight: bold; white-space: nowrap;">${idx + 1}</td>
+                    <td style="font-weight: bold; font-size: 14px; white-space: nowrap;">${student.student_name}</td>
+                    <td style="white-space: nowrap;">${student.group_name || '-'}</td>
+                    <td dir="ltr" style="text-align: right; font-family: monospace; white-space: nowrap;">${cleanPhone}</td>
+                    <td style="color: #c0392b; font-weight: bold; white-space: nowrap;">${statusText}</td>
+                    <td style="min-width: 150px;"></td>
                 </tr>
             `;
         });
@@ -147,7 +150,7 @@ if (true) {
                     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
                     body {
                         font-family: 'Tajawal', sans-serif;
-                        margin: 20px;
+                        margin: 15px;
                         color: #111;
                         background: #fff;
                         direction: rtl;
@@ -155,46 +158,49 @@ if (true) {
                     .header {
                         text-align: center;
                         border-bottom: 2px solid #222;
-                        padding-bottom: 12px;
-                        margin-bottom: 18px;
+                        padding-bottom: 8px;
+                        margin-bottom: 15px;
                     }
                     .header h1 {
-                        margin: 0 0 5px 0;
-                        font-size: 22px;
+                        margin: 0 0 4px 0;
+                        font-size: 20px;
                         color: #111;
                     }
                     .header h2 {
                         margin: 0;
-                        font-size: 16px;
+                        font-size: 15px;
                         color: #555;
                     }
                     .meta-info {
                         display: flex;
                         justify-content: space-between;
                         font-size: 13px;
-                        margin-bottom: 15px;
+                        margin-bottom: 12px;
                         background: #f8f9fa;
-                        padding: 10px 15px;
+                        padding: 8px 12px;
                         border: 1px solid #ddd;
                         border-radius: 6px;
+                        white-space: nowrap;
                     }
                     table {
                         width: 100%;
                         border-collapse: collapse;
-                        margin-top: 10px;
+                        margin-top: 5px;
                     }
                     th, td {
                         border: 1px solid #333;
-                        padding: 9px 12px;
+                        padding: 8px 10px;
                         text-align: right;
                         font-size: 13px;
                     }
                     th {
                         background-color: #eee;
                         font-weight: bold;
+                        white-space: nowrap;
+                        text-align: center;
                     }
                     .footer {
-                        margin-top: 25px;
+                        margin-top: 20px;
                         display: flex;
                         justify-content: space-between;
                         font-size: 13px;
@@ -203,7 +209,7 @@ if (true) {
                         padding-top: 10px;
                     }
                     @media print {
-                        @page { margin: 12mm; size: A4 portrait; }
+                        @page { margin: 10mm; size: A4 portrait; }
                         body { margin: 0; }
                     }
                 </style>
@@ -211,7 +217,7 @@ if (true) {
             <body>
                 <div class="header">
                     <h1>🧪 مركز أ / وليد قنديل للكيمياء</h1>
-                    <h2>كشف مراجعة وتأكيد اشتراكات الطلاب غير المسددين</h2>
+                    <h2>كشف الطلاب غير المسددين والمطلوبين للمتابعة</h2>
                 </div>
 
                 <div class="meta-info">
@@ -223,12 +229,12 @@ if (true) {
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 40px; text-align: center;">م</th>
-                            <th>اسم الطالب</th>
-                            <th>المجموعة</th>
-                            <th>رقم الواتساب</th>
-                            <th>المبلغ / حالة الدفع</th>
-                            <th style="width: 140px;">ملاحظات / التوقيع في الحصة</th>
+                            <th style="width: 30px; text-align: center;">م</th>
+                            <th style="white-space: nowrap;">اسم الطالب</th>
+                            <th style="white-space: nowrap;">المجموعة</th>
+                            <th style="white-space: nowrap;">رقم الواتساب</th>
+                            <th style="white-space: nowrap;">المبلغ / الحالة</th>
+                            <th style="width: 150px; text-align: center;">ملاحظات</th>
                         </tr>
                     </thead>
                     <tbody>
